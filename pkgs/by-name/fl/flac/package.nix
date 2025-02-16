@@ -42,7 +42,7 @@ stdenv.mkDerivation (finalAttrs: {
   CXXFLAGS = [ "-O3" ];
 
   doCheck = true;
-  enableParallelChecking = stdenv.hostPlatform.{isDarwin, isAarch64};;
+  enableParallelChecking = stdenv.hostPlatform.{isDarwin, isAarch64};
 
   outputs = [
     "bin"
