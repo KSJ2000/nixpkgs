@@ -1,93 +1,86 @@
 {
-  lib,
-  stdenv,
-  rustPlatform,
-  fetchFromGitHub,
-  makeWrapper,
+  autoconf,
+  cmake,
   dbus,
+  fetchFromGitHub,
   ffmpeg,
-  x264,
-  libva,
+  git,
   gst_all_1,
-  xorg,
+  lib,
   libdrm,
-  pkg-config,
+  libtool,
+  libva,
+  libxkbcommon,
+  makeWrapper,
+  nix-update-script,
   pango,
   pipewire,
-  cmake,
-  git,
-  autoconf,
-  libtool,
+  pkg-config,
+  rustPlatform,
   typescript,
-  ApplicationServices,
-  Carbon,
-  Cocoa,
-  VideoToolbox,
-  libxkbcommon,
+  versionCheckHook,
+  xorg,
+  x264,
   wayland,
 }:
 
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage (finalAttrs: {
   pname = "weylus";
   version = "0.11.4-unstable-2025-02-24";
 
   src = fetchFromGitHub {
     owner = "H-M-H";
-    repo = pname;
+    repo = "Weylus";
     rev = "5202806798ccca67c24da52ba51ee50b973b7089";
-    sha256 = "sha256-lx1ZVp5DkQiL9/vw6PAZ34Lge+K8dfEVh6vLnCUNf7M=";
+    hash = "sha256-lx1ZVp5DkQiL9/vw6PAZ34Lge+K8dfEVh6vLnCUNf7M=";
   };
-
-  buildInputs =
-    [
-      ffmpeg
-      x264
-    ]
-    ++ lib.optionals stdenv.hostPlatform.isDarwin [
-      ApplicationServices
-      Carbon
-      Cocoa
-      VideoToolbox
-    ]
-    ++ lib.optionals stdenv.hostPlatform.isLinux [
-      dbus
-      libva
-      gst_all_1.gst-plugins-base
-      xorg.libXext
-      xorg.libXft
-      xorg.libXinerama
-      xorg.libXcursor
-      xorg.libXrender
-      xorg.libXfixes
-      xorg.libXtst
-      xorg.libXrandr
-      xorg.libXcomposite
-      xorg.libXi
-      xorg.libXv
-      pango
-      libdrm
-      libxkbcommon
-      wayland
-    ];
-
-  nativeBuildInputs =
-    [
-      cmake
-      git
-      typescript
-      makeWrapper
-    ]
-    ++ lib.optionals stdenv.hostPlatform.isLinux [
-      pkg-config
-      autoconf
-      libtool
-    ];
 
   useFetchCargoVendor = true;
   cargoHash = "sha256-dLhlYOrLjoBSRGDJB0qTEIb+oGnp9X+ADHddpYITdl8=";
 
+  nativeBuildInputs = [
+    autoconf
+    cmake
+    git
+    libtool
+    makeWrapper
+    pkg-config
+    typescript
+  ];
+
+  buildInputs = [
+    dbus
+    ffmpeg
+    gst_all_1.gst-plugins-base
+    libdrm
+    libva
+    libxkbcommon
+    pango
+    xorg.libXcomposite
+    xorg.libXcursor
+    xorg.libXext
+    xorg.libXfixes
+    xorg.libXft
+    xorg.libXi
+    xorg.libXinerama
+    xorg.libXrandr
+    xorg.libXrender
+    xorg.libXtst
+    xorg.libXv
+    x264
+    wayland
+  ];
+
+  env = {
+    NIX_CFLAGS_COMPILE = "-Wno-incompatible-pointer-types";
+  };
+
   cargoBuildFlags = [ "--features=ffmpeg-system" ];
   cargoTestFlags = [ "--features=ffmpeg-system" ];
+
+  postUnpack = ''
+    substituteInPlace source/Cargo.toml --replace-fail "version = \"0.11.4\"" "version = \"${finalAttrs.version}\""
+  '';
 
   postFixup =
     let
@@ -96,7 +89,7 @@ rustPlatform.buildRustPackage rec {
         pipewire
       ];
     in
-    lib.optionalString stdenv.hostPlatform.isLinux ''
+    ''
       wrapProgram $out/bin/weylus --prefix GST_PLUGIN_PATH : ${GST_PLUGIN_PATH}
     '';
 
@@ -104,18 +97,18 @@ rustPlatform.buildRustPackage rec {
     install -vDm755 weylus.desktop $out/share/applications/weylus.desktop
   '';
 
-  env = {
-    NIX_CFLAGS_COMPILE = toString [
-      "-Wno-incompatible-pointer-types"
-    ];
-  };
+  doInstallCheck = true;
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  versionCheckProgramArg = "--version";
 
-  meta = with lib; {
-    broken = stdenv.hostPlatform.isDarwin;
+  passthru.updateScript = nix-update-script { extraArgs = [ "--version=branch" ]; };
+
+  meta = {
     description = "Use your tablet as graphic tablet/touch screen on your computer";
-    mainProgram = "weylus";
     homepage = "https://github.com/H-M-H/Weylus";
-    license = with licenses; [ agpl3Only ];
-    maintainers = with maintainers; [ lom ];
+    license = with lib.licenses; [ agpl3Only ];
+    mainProgram = "weylus";
+    maintainers = with lib.maintainers; [ lom ];
+    platforms = lib.platforms.linux;
   };
-}
+})
